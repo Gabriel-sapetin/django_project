@@ -6,7 +6,7 @@ pip install -r requirements.txt
 
 echo "Building React frontend..."
 cd frontend
-npm install --omit=dev
+npm install
 NODE_ENV=production npm run build
 cd ..
 
