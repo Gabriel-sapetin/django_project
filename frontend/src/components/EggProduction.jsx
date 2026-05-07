@@ -1,161 +1,118 @@
 /**
- * Egg Production Component - Display and record egg production
+ * Egg Production Component - Matches Haidee's egg_production page
  */
 
 import React, { useState, useEffect } from 'react';
-import { useFetch, usePost, usePoll } from '../hooks';
-import { eggProductionAPI, animalAPI } from '../services/apiService';
+import { useFetch } from '../hooks';
+import { eggProductionAPI, activityAPI } from '../services/apiService';
 import './EggProduction.css';
 
 export const EggProduction = () => {
-  const { data: productions, loading, error, refetch } = useFetch('/egg-production/');
-  const { data: animals } = useFetch('/animals/');
-  const { post: postProduction, loading: posting } = usePost();
-  
-  // Poll for weekly summary
-  const { data: weeklySummary } = usePoll(
-    () => eggProductionAPI.getWeeklySummary(),
-    5000,
-    true
-  );
+  const { data: productions, loading } = useFetch('/egg-production/');
+  const [weeklyTotal, setWeeklyTotal] = useState(0);
+  const [recentActivities, setRecentActivities] = useState([]);
 
-  const [formData, setFormData] = useState({
-    animal: '',
-    quantity: '',
-    date: new Date().toISOString().split('T')[0],
-  });
+  useEffect(() => {
+    // Fetch weekly summary
+    eggProductionAPI.getWeeklySummary()
+      .then(res => {
+        const data = res.data;
+        if (Array.isArray(data)) {
+          const total = data.reduce((sum, d) => sum + (d.total || 0), 0);
+          setWeeklyTotal(total);
+        }
+      })
+      .catch(() => {});
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await postProduction('/egg-production/', formData);
-      setFormData({
-        animal: '',
-        quantity: '',
-        date: new Date().toISOString().split('T')[0],
-      });
-      refetch();
-      alert('Egg production recorded successfully!');
-    } catch (error) {
-      alert('Error recording egg production');
-    }
+    // Fetch recent activities (egg-related)
+    const today = new Date();
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    activityAPI.getByDateRange(
+      weekAgo.toISOString().split('T')[0],
+      today.toISOString().split('T')[0],
+      'egg_collection'
+    ).then(res => {
+      const data = res.data?.results !== undefined ? res.data.results : res.data;
+      setRecentActivities(data || []);
+    }).catch(() => {});
+  }, []);
+
+
+
+  const handleExportPDF = () => {
+    window.print();
   };
 
-  if (loading) return <div className="egg-loading">Loading egg production data...</div>;
+  if (loading) return <div className="page-loading">Loading egg production...</div>;
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayEggs = (productions || [])
+    .filter(p => p.date === todayStr)
+    .reduce((sum, p) => sum + (p.quantity || 0), 0);
 
   return (
     <div className="egg-production">
-      <div className="header">
-        <h1>🥚 Egg Production</h1>
-      </div>
-
-      {/* Record Form */}
-      <div className="record-form-container">
-        <h2>Record Egg Production</h2>
-        <form onSubmit={handleSubmit} className="record-form">
-          <div className="form-group">
-            <label>Animal</label>
-            <select
-              value={formData.animal}
-              onChange={(e) => setFormData({ ...formData, animal: e.target.value })}
-              required
-              className="form-input"
-            >
-              <option value="">Select an animal</option>
-              {animals?.map(animal => (
-                <option key={animal.id} value={animal.id}>
-                  {animal.name} ({animal.category_display})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>Quantity</label>
-            <input
-              type="number"
-              min="0"
-              value={formData.quantity}
-              onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-              required
-              placeholder="0"
-              className="form-input"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Date</label>
-            <input
-              type="date"
-              value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              required
-              className="form-input"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={posting}
-            className="btn btn-primary"
-          >
-            {posting ? 'Recording...' : 'Record Production'}
-          </button>
-        </form>
-      </div>
-
-      {/* Weekly Summary */}
-      {weeklySummary && weeklySummary.length > 0 && (
-        <div className="summary-container">
-          <h2>Weekly Summary</h2>
-          <div className="weekly-chart">
-            {weeklySummary.map((day) => (
-              <div key={day.date} className="day-bar">
-                <div className="bar" style={{ height: `${Math.min(day.total * 5, 200)}px` }}>
-                  {day.total}
-                </div>
-                <div className="date">{new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' })}</div>
-              </div>
-            ))}
-          </div>
+      <div className="page-header">
+        <div className="page-title-row">
+          <span className="page-icon">🥚</span>
+          <h1>Egg Production</h1>
+          <span className="page-subtitle">Review recent egg production and download the report as a PDF.</span>
         </div>
-      )}
+        <button className="btn-export" onClick={handleExportPDF}>
+          📄 Download Egg Production PDF
+        </button>
+      </div>
 
-      {/* Recent Productions */}
-      <div className="productions-container">
-        <h2>Recent Production Records</h2>
-        <div className="productions-list">
-          {productions && productions.length > 0 ? (
-            productions.slice(0, 20).map(production => (
-              <ProductionItem key={production.id} production={production} />
-            ))
-          ) : (
-            <p className="empty-message">No production records yet</p>
-          )}
+      {/* Summary Cards */}
+      <div className="summary-cards-row">
+        <div className="summary-card">
+          <div className="sc-icon">🥚</div>
+          <div className="sc-label">TODAY'S EGG COUNT</div>
+          <div className="sc-value">{todayEggs}</div>
+          <div className="sc-sub">Weekly total: {weeklyTotal} eggs</div>
+        </div>
+        <div className="summary-card">
+          <div className="sc-icon">📋</div>
+          <div className="sc-label">RECENT ACTIVITY</div>
+          <div className="sc-value">{recentActivities.length}</div>
+          <div className="sc-sub">Last 7 days of operations</div>
         </div>
       </div>
 
-      <button onClick={refetch} className="btn-refresh">🔄 Refresh</button>
-    </div>
-  );
-};
-
-/**
- * Production Item Component
- */
-const ProductionItem = ({ production }) => {
-  return (
-    <div className="production-item">
-      <div className="item-left">
-        <strong>{production.animal_name}</strong>
-        <span className="date">{production.date}</span>
-      </div>
-      <div className="item-middle">
-        <span className="quantity">{production.quantity} eggs</span>
-        <span className="remaining">Remaining: {production.remaining_stock}</span>
-      </div>
-      <div className="item-right">
-        <span className="collected-by">by {production.collected_by_username || 'System'}</span>
+      {/* Recent Activity History Table */}
+      <div className="content-card">
+        <h2>Recent Activity History</h2>
+        <div className="table-container">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>DATE</th>
+                <th>TIME</th>
+                <th>ACTIVITY</th>
+                <th>ANIMAL</th>
+                <th>RECORDED BY</th>
+                <th>NOTES</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentActivities.length > 0 ? recentActivities.map(a => (
+                <tr key={a.id}>
+                  <td>{new Date(a.date).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}</td>
+                  <td>{a.time}</td>
+                  <td>{a.activity_type_display}</td>
+                  <td>{a.animal_name || '—'}</td>
+                  <td>{a.employee_name || '—'}</td>
+                  <td>{a.notes || '—'}</td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan="6" className="empty-cell">No recent egg collection activities.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

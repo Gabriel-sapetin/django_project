@@ -179,6 +179,7 @@ export const notificationAPI = {
 export const profileAPI = {
   getMe: () => apiClient.get('/profile/me/'),
   updateProfile: (data) => apiClient.put('/profile/update_profile/', data),
+  changePassword: (data) => apiClient.post('/profile/change_password/', data),
 };
 
 /**

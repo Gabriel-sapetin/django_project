@@ -1,0 +1,75 @@
+/* ReportActivities.css */
+
+.report-activities {
+  animation: fadeIn 0.3s ease-in;
+}
+
+.filter-bar {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.filter-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.filter-select {
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  min-width: 160px;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.activities-count {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+  font-style: italic;
+}
+
+.activity-type-link {
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.activity-type-link:hover {
+  text-decoration: underline;
+}
+
+.proof-yes {
+  font-size: 1.1rem;
+}
+
+.proof-no {
+  font-size: 1.1rem;
+  opacity: 0.6;
+}
+
+@media (max-width: 768px) {
+  .filter-bar {
+    flex-direction: column;
+  }
+
+  .filter-select {
+    width: 100%;
+  }
+}

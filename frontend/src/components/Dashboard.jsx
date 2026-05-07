@@ -1,148 +1,188 @@
 /**
- * Dashboard Component - Main dashboard showing real-time data
+ * Dashboard Component - Matches Haidee's dashboard layout
  */
 
 import React, { useEffect, useState } from 'react';
-import { useDashboardRealtime } from '../hooks';
-import { dashboardAPI } from '../services/apiService';
+import { dashboardAPI, activityAPI } from '../services/apiService';
 import './Dashboard.css';
 
 export const Dashboard = () => {
-  const { dashboardData, alerts, activities, isConnected, requestUpdate } = useDashboardRealtime();
-  const [staticData, setStaticData] = useState(null);
+  const [data, setData] = useState(null);
+  const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activityFilter, setActivityFilter] = useState('today');
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // Fetch initial data if WebSocket doesn't provide it
   useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        const data = await dashboardAPI.getSummary();
-        setStaticData(data);
-      } catch (error) {
-        console.error('Failed to fetch dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchInitialData();
+    fetchDashboard();
   }, []);
 
-  const data = dashboardData || staticData;
+  useEffect(() => {
+    fetchActivities();
+  }, [activityFilter]);
 
-  if (loading && !data) {
-    return <div className="dashboard-loading">Loading dashboard...</div>;
-  }
+  const fetchDashboard = async () => {
+    try {
+      const res = await dashboardAPI.getSummary();
+      setData(res.data);
+    } catch (err) {
+      console.error('Failed to fetch dashboard:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchActivities = async () => {
+    try {
+      const today = new Date();
+      let startDate;
+      if (activityFilter === 'today') {
+        startDate = today.toISOString().split('T')[0];
+      } else if (activityFilter === 'week') {
+        const weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        startDate = weekAgo.toISOString().split('T')[0];
+      } else {
+        const monthAgo = new Date(today);
+        monthAgo.setMonth(monthAgo.getMonth() - 1);
+        startDate = monthAgo.toISOString().split('T')[0];
+      }
+      const endDate = today.toISOString().split('T')[0];
+      const res = await activityAPI.getByDateRange(startDate, endDate);
+      const result = res.data?.results !== undefined ? res.data.results : res.data;
+      setActivities(result || []);
+    } catch (err) {
+      // Try today endpoint as fallback
+      try {
+        const res = await activityAPI.getToday();
+        const result = res.data?.results !== undefined ? res.data.results : res.data;
+        setActivities(result || []);
+      } catch {
+        setActivities([]);
+      }
+    }
+  };
+
+  if (loading) return <div className="page-loading">Loading dashboard...</div>;
+
+  const filteredActivities = activities.filter(a => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      (a.activity_type_display || '').toLowerCase().includes(term) ||
+      (a.employee_name || '').toLowerCase().includes(term) ||
+      (a.animal_name || '').toLowerCase().includes(term) ||
+      (a.notes || '').toLowerCase().includes(term)
+    );
+  });
 
   return (
     <div className="dashboard">
-      <div className="dashboard-header">
-        <h1>📊 Farm Dashboard</h1>
-        <div className="connection-status">
-          <span className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}></span>
-          {isConnected ? 'Live Updates' : 'Offline'}
+      <div className="page-header">
+        <div className="page-title-row">
+          <span className="page-icon">📊</span>
+          <h1>Dashboard</h1>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="summary-grid">
-        <SummaryCard
-          icon="🐔"
-          title="Total Animals"
-          value={data?.total_animals || 0}
-          detail="Flock size"
-        />
-        <SummaryCard
-          icon="🥚"
-          title="Today's Eggs"
-          value={data?.total_eggs_today || 0}
-          detail={`Weekly: ${data?.total_eggs_week || 0}`}
-        />
-        <SummaryCard
-          icon="🌾"
-          title="Feed Stock"
-          value={`${data?.total_feed_stock?.toFixed(1) || 0} kg`}
-          detail={data?.feed_status === 'critical' ? '⚠️ Critical' : data?.feed_status === 'warning' ? '⚠️ Low' : '✓ Stable'}
-          status={data?.feed_status}
-        />
-        <SummaryCard
-          icon="📋"
-          title="Recent Mortality"
-          value={data?.recent_mortality || 0}
-          detail="Last 7 days"
-        />
+      <div className="dashboard-cards">
+        <div className="dash-card">
+          <div className="dc-icon">🐔</div>
+          <div className="dc-label">CHICKEN DASHBOARD OVERVIEW</div>
+          <div className="dc-main">Flock monitoring</div>
+          <div className="dc-sub">Chicken, Pigs, Quail</div>
+        </div>
+        <div className="dash-card">
+          <div className="dc-icon">🥚</div>
+          <div className="dc-label">TODAY'S EGG COUNT</div>
+          <div className="dc-value">{data?.total_eggs_today || 0}</div>
+          <div className="dc-sub">Weekly total: {data?.total_eggs_week || 0} eggs</div>
+        </div>
+        <div className="dash-card">
+          <div className="dc-icon">🌾</div>
+          <div className="dc-label">FEED STOCK</div>
+          <div className="dc-value">{data?.total_feed_stock?.toFixed(1) || '0.0'} kg</div>
+          <div className="dc-sub">
+            {data?.feed_status === 'critical' ? '⚠️ Critical levels' :
+             data?.feed_status === 'warning' ? '⚠️ Low stock' :
+             '✓ Stock levels stable'}
+          </div>
+        </div>
+        <div className="dash-card">
+          <div className="dc-icon">📋</div>
+          <div className="dc-label">RECENT MORTALITY</div>
+          <div className="dc-value">{data?.recent_mortality || 0}</div>
+          <div className="dc-sub">Last 7 days</div>
+        </div>
       </div>
 
-      {/* Alerts Section */}
-      {alerts && alerts.length > 0 && (
-        <div className="alerts-section">
-          <h3>🚨 Active Alerts</h3>
-          <div className="alerts-list">
-            {alerts.slice(0, 5).map((alert, index) => (
-              <div key={index} className={`alert alert-${alert.severity || 'info'}`}>
-                <strong>{alert.title}</strong>
-                <p>{alert.message}</p>
-              </div>
-            ))}
+      {/* Recent Activity Section */}
+      <div className="content-card">
+        <div className="activity-header">
+          <h2>Recent Activity</h2>
+          <div className="activity-controls">
+            <input
+              type="text"
+              placeholder="Search activities..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="activity-search"
+            />
+            <div className="activity-filters">
+              <button
+                className={`filter-btn ${activityFilter === 'today' ? 'active' : ''}`}
+                onClick={() => setActivityFilter('today')}
+              >
+                Today
+              </button>
+              <button
+                className={`filter-btn ${activityFilter === 'week' ? 'active' : ''}`}
+                onClick={() => setActivityFilter('week')}
+              >
+                This Week
+              </button>
+              <button
+                className={`filter-btn ${activityFilter === 'month' ? 'active' : ''}`}
+                onClick={() => setActivityFilter('month')}
+              >
+                This Month
+              </button>
+            </div>
           </div>
         </div>
-      )}
 
-      {/* Recent Activity */}
-      {activities && activities.length > 0 && (
-        <div className="activity-section">
-          <h3>📋 Recent Activity</h3>
-          <div className="activity-list">
-            {activities.slice(0, 10).map((activity) => (
-              <div key={activity.id} className="activity-item">
-                <div className="activity-time">{activity.time}</div>
-                <div className="activity-content">
-                  <strong>{activity.employee_name}</strong> - {activity.activity_type_display}
-                  {activity.animal_name && <span> on {activity.animal_name}</span>}
-                </div>
-              </div>
-            ))}
+        {filteredActivities.length > 0 ? (
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>DATE</th>
+                  <th>TIME</th>
+                  <th>ACTIVITY</th>
+                  <th>ANIMAL</th>
+                  <th>RECORDED BY</th>
+                  <th>NOTES</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredActivities.slice(0, 20).map(activity => (
+                  <tr key={activity.id}>
+                    <td>{activity.date}</td>
+                    <td>{activity.time}</td>
+                    <td>{activity.activity_type_display}</td>
+                    <td>{activity.animal_name || '—'}</td>
+                    <td>{activity.employee_name || '—'}</td>
+                    <td>{activity.notes || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
-      )}
-
-      {/* Analytics Section */}
-      {data?.analytics && (
-        <div className="analytics-section">
-          <h3>📈 Analytics</h3>
-          <div className="analytics-grid">
-            {Object.entries(data.analytics).map(([key, value]) => (
-              <div key={key} className="analytics-item">
-                <strong>{key.replace(/_/g, ' ')}</strong>
-                <p>{value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Refresh Button */}
-      <button
-        className="btn-refresh"
-        onClick={() => requestUpdate('get_dashboard')}
-        disabled={!isConnected}
-      >
-        🔄 Refresh
-      </button>
-    </div>
-  );
-};
-
-/**
- * Summary Card Component
- */
-const SummaryCard = ({ icon, title, value, detail, status }) => {
-  return (
-    <div className={`summary-card ${status ? `status-${status}` : ''}`}>
-      <div className="card-icon">{icon}</div>
-      <div className="card-title">{title}</div>
-      <div className="card-value">{value}</div>
-      <div className="card-detail">{detail}</div>
+        ) : (
+          <p className="empty-msg">No activities found for this period.</p>
+        )}
+      </div>
     </div>
   );
 };

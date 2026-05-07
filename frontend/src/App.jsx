@@ -1,6 +1,5 @@
 /**
- * Main App Component
- * Root component for the React frontend
+ * Main App Component - Matches Haidee's BATAC Farm layout
  */
 
 import React, { useState, useEffect } from 'react';
@@ -8,22 +7,33 @@ import './App.css';
 import { Dashboard } from './components/Dashboard';
 import { Animals } from './components/Animals';
 import { EggProduction } from './components/EggProduction';
+import { FeedStock } from './components/FeedStock';
+import { MortalitySummary } from './components/MortalitySummary';
+import { ReportActivities } from './components/ReportActivities';
+import { SettingsProfile } from './components/SettingsProfile';
 import { Login } from './components/Login';
-import { getAuth, clearAuth } from './services/apiService';
-import webSocketService from './services/webSocketService';
+import { getAuth, clearAuth, notificationAPI } from './services/apiService';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [user, setUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
 
   useEffect(() => {
-    // Check if user is already logged in
     const { token, user: savedUser } = getAuth();
     if (token && savedUser) {
       setUser(savedUser);
     }
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      notificationAPI.getUnreadCount()
+        .then(res => setUnreadNotifs(res.data?.unread_count || 0))
+        .catch(() => {});
+    }
+  }, [user, currentPage]);
 
   const handleLoginSuccess = (loggedInUser) => {
     setUser(loggedInUser);
@@ -35,7 +45,6 @@ function App() {
     setCurrentPage('dashboard');
   };
 
-  // If not logged in, show login page
   if (!user) {
     return <Login onLoginSuccess={handleLoginSuccess} />;
   }
@@ -48,85 +57,91 @@ function App() {
         return <Animals />;
       case 'egg-production':
         return <EggProduction />;
+      case 'feed-stock':
+        return <FeedStock />;
+      case 'mortality':
+        return <MortalitySummary />;
+      case 'reports':
+        return <ReportActivities />;
+      case 'settings':
+        return <SettingsProfile onNavigate={setCurrentPage} />;
       default:
         return <Dashboard />;
     }
   };
 
+  const navItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'animals', label: 'Animals & Eggs', icon: '🐔' },
+    { id: 'egg-production', label: 'Egg Production', icon: '🥚' },
+    { id: 'feed-stock', label: 'Feed Stock', icon: '🌾' },
+    { id: 'mortality', label: 'Mortality Summary', icon: '⚠️' },
+    { id: 'reports', label: 'Report with Proof Activities', icon: '📋' },
+    { id: 'settings', label: 'Settings and Profile', icon: '⚙️' },
+  ];
+
   return (
     <div className="app">
-      {/* Header */}
-      <header className="app-header">
-        <div className="header-content">
-          <button
-            className="menu-toggle"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-          >
-            ☰
-          </button>
-          <h1 className="app-title">🌾 Farm Management System</h1>
-          <div className="user-section">
-            {user && <span className="user-name">{user.username}</span>}
-            <button onClick={handleLogout} className="logout-link">Logout</button>
-          </div>
+      {/* Sidebar */}
+      <aside className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
+        <div className="sidebar-brand">
+          <span className="brand-icon">🌾</span>
+          <span className="brand-text">BATAC Farm</span>
         </div>
-      </header>
+        <nav className="sidebar-nav">
+          {navItems.map(item => (
+            <button
+              key={item.id}
+              className={`nav-item ${currentPage === item.id ? 'active' : ''}`}
+              onClick={() => setCurrentPage(item.id)}
+            >
+              <span className="nav-icon">{item.icon}</span>
+              {item.label}
+            </button>
+          ))}
+        </nav>
+      </aside>
 
-      {/* Main Container */}
-      <div className="app-container">
-        {/* Sidebar Navigation */}
-        <aside className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
-          <nav className="sidebar-nav">
-            <button
-              className={`nav-item ${currentPage === 'dashboard' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('dashboard')}
-            >
-              📊 Dashboard
+      {/* Main Area */}
+      <div className="main-area">
+        {/* Top Header Bar */}
+        <header className="app-header">
+          <div className="header-left">
+            <button className="menu-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
+              ☰
             </button>
-            <button
-              className={`nav-item ${currentPage === 'animals' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('animals')}
-            >
-              🐔 Animals
+            <div className="header-brand">
+              <span className="header-brand-icon">🌾</span>
+              <span className="header-brand-text">Farm Mgmt</span>
+            </div>
+          </div>
+          <div className="header-right">
+            <button className="notif-btn" onClick={() => setCurrentPage('dashboard')}>
+              🔔
+              {unreadNotifs > 0 && <span className="notif-badge">{unreadNotifs}</span>}
             </button>
-            <button
-              className={`nav-item ${currentPage === 'egg-production' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('egg-production')}
-            >
-              🥚 Egg Production
-            </button>
-            <hr />
-            <p className="nav-label">More Features Coming Soon</p>
-            <button className="nav-item disabled">
-              🌾 Feed Inventory
-            </button>
-            <button className="nav-item disabled">
-              ⚠️ Mortality Records
-            </button>
-            <button className="nav-item disabled">
-              👥 Employees
-            </button>
-            <button className="nav-item disabled">
-              📈 Reports
-            </button>
-          </nav>
-        </aside>
+            <div className="user-info">
+              <div className="user-avatar">
+                {(user.first_name || user.username || '?')[0].toUpperCase()}
+              </div>
+              <div className="user-details">
+                <span className="user-name">{user.username}</span>
+                <span className="user-role">Owner</span>
+              </div>
+            </div>
+            <button onClick={handleLogout} className="logout-btn">Logout</button>
+          </div>
+        </header>
 
-        {/* Main Content */}
+        {/* Page Content */}
         <main className="main-content">
           <div className="page-container">
             {renderPage()}
           </div>
         </main>
       </div>
-
-      {/* Footer */}
-      <footer className="app-footer">
-        <p>© 2024 Farm Management System. All rights reserved.</p>
-      </footer>
     </div>
   );
 }
 
 export default App;
-

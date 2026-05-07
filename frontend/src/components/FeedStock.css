@@ -1,0 +1,72 @@
+/* FeedStock.css */
+
+.feed-stock {
+  animation: fadeIn 0.3s ease-in;
+}
+
+.feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.feed-item {
+  background: #f9f9f9;
+  border-left: 4px solid var(--primary);
+  border-radius: 6px;
+  padding: 1.25rem;
+  transition: box-shadow 0.2s;
+}
+
+.feed-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.feed-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.feed-item-header h3 {
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.stock-badge {
+  padding: 0.35rem 0.85rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: white;
+}
+
+.stock-badge.normal {
+  background: var(--success);
+}
+
+.stock-badge.low {
+  background: var(--danger);
+}
+
+.feed-item-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.feed-item-details strong {
+  color: var(--text-primary);
+}
+
+@media (max-width: 768px) {
+  .feed-item-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
