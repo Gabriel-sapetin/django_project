@@ -7,7 +7,7 @@ pip install -r requirements.txt
 echo "Building React frontend..."
 cd frontend
 npm install
-NODE_ENV=production npm run build
+CI=false NODE_ENV=production npm run build
 cd ..
 
 echo "Copying frontend build to static files..."
