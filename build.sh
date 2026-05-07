@@ -15,9 +15,24 @@ mkdir -p myproject/static
 cp -r frontend/build/* myproject/static/ || true
 
 echo "Collecting Django static files..."
-python myproject/manage.py collectstatic --no-input
+python manage.py collectstatic --no-input
 
 echo "Running database migrations..."
-python myproject/manage.py migrate
+python manage.py migrate
+
+echo "Creating superuser if needed..."
+python manage.py shell -c "
+from django.contrib.auth import get_user_model
+User = get_user_model()
+import os
+username = os.environ.get('DJANGO_SUPERUSER_USERNAME', 'admin')
+email = os.environ.get('DJANGO_SUPERUSER_EMAIL', 'admin@example.com')
+password = os.environ.get('DJANGO_SUPERUSER_PASSWORD', '')
+if password and not User.objects.filter(username=username).exists():
+    User.objects.create_superuser(username, email, password)
+    print(f'Superuser {username} created.')
+else:
+    print('Superuser already exists or no password set.')
+" || true
 
 echo "Build completed successfully!"

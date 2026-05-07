@@ -73,3 +73,11 @@ htmlcov/
 # Temp files
 *.tmp
 *.temp
+
+# Nested duplicates (should not exist)
+myproject/farm/
+myproject/myproject/
+myproject/manage.py
+myproject/media/
+myproject/nodejs.msi
+*.msi

@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
-    'channels',
+
     # Local apps
     'farm',
 ]
@@ -169,11 +169,5 @@ CORS_ALLOW_CREDENTIALS = True
 # ===== CSRF TRUSTED ORIGINS (needed for production) =====
 CSRF_TRUSTED_ORIGINS = [origin for origin in CORS_ALLOWED_ORIGINS if origin.startswith('https://')]
 
-# ===== CHANNELS CONFIGURATION =====
-ASGI_APPLICATION = 'myproject.asgi.application'
-
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer'
-    }
-}
+# Default primary key field type
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
