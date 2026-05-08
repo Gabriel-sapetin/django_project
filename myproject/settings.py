@@ -43,12 +43,14 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
-    'cloudinary',
-    'cloudinary_storage',
 
     # Local apps
     'farm',
 ]
+
+# Only add cloudinary when CLOUDINARY_URL is configured
+if os.environ.get('CLOUDINARY_URL'):
+    INSTALLED_APPS.insert(-1, 'cloudinary')
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -140,13 +142,19 @@ STORAGES = {
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Ensure media directory exists for local file storage fallback
+os.makedirs(MEDIA_ROOT, exist_ok=True)
+
 # ===== CLOUDINARY CONFIGURATION (for persistent media on Render) =====
-if os.environ.get('CLOUDINARY_URL'):
-    CLOUDINARY_STORAGE = {
-        'CLOUDINARY_URL': os.environ.get('CLOUDINARY_URL'),
+_cloudinary_url = os.environ.get('CLOUDINARY_URL')
+if _cloudinary_url:
+    import cloudinary
+    cloudinary.config(
+        cloudinary_url=_cloudinary_url
+    )
+    STORAGES["default"] = {
+        "BACKEND": "farm.storage.CloudinaryStorage",
     }
-    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-    MEDIA_URL = '/media/'
 
 # Login URL
 LOGIN_URL = '/login/'

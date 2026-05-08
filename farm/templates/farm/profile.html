@@ -78,9 +78,13 @@
 
         <h1>OWNER 👑</h1>
 
-        {% if profile.photo or profile.photo_url %}
+        {% if profile.photo_url %}
             <div class="profile-photo-preview">
-                <img src="{% if profile.photo %}{{ profile.photo.url }}{% else %}{{ profile.photo_url }}{% endif %}" alt="Profile Photo">
+                <img src="{{ profile.photo_url }}" alt="Profile Photo">
+            </div>
+        {% elif profile.photo and profile.photo.name %}
+            <div class="profile-photo-preview">
+                <img src="{{ profile.photo.url }}" alt="Profile Photo" onerror="this.parentElement.style.display='none'">
             </div>
         {% endif %}
 
