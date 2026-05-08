@@ -64,7 +64,7 @@
                             <td>{{ record.animal.name }} ({{ record.animal.category }})</td>
                             <td>{{ record.count }}</td>
                             <td>{{ record.reason|truncatechars:50|default:"Not specified" }}</td>
-                            <td>{{ record.reported_by.get_full_name|default:record.reported_by.username|default:"System" }}</td>
+                            <td>{% if record.reported_by %}{{ record.reported_by.get_full_name|default:record.reported_by.username }}{% else %}System{% endif %}</td>
                         </tr>
                     {% endfor %}
                 </tbody>
