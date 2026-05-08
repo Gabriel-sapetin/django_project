@@ -43,6 +43,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
+    'cloudinary',
+    'cloudinary_storage',
 
     # Local apps
     'farm',
@@ -137,6 +139,14 @@ STORAGES = {
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# ===== CLOUDINARY CONFIGURATION (for persistent media on Render) =====
+if os.environ.get('CLOUDINARY_URL'):
+    CLOUDINARY_STORAGE = {
+        'CLOUDINARY_URL': os.environ.get('CLOUDINARY_URL'),
+    }
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    MEDIA_URL = '/media/'
 
 # Login URL
 LOGIN_URL = '/login/'
