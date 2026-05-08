@@ -17,6 +17,9 @@ cp -r frontend/build/* myproject/static/ || true
 echo "Collecting Django static files..."
 python manage.py collectstatic --no-input
 
+echo "Creating media directories..."
+mkdir -p media/employee_photos media/activity_photos media/profile_photos
+
 echo "Running database migrations..."
 python manage.py migrate
 

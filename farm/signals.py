@@ -30,7 +30,7 @@ def update_animal_count_on_mortality(sender, instance, created, **kwargs):
     """Update animal count when mortality is recorded"""
     if created:
         animal = instance.animal
-        animal.total_count -= instance.count
+        animal.total_count = max(0, animal.total_count - instance.count)
         animal.save()
 
 @receiver(post_delete, sender=Mortality)
