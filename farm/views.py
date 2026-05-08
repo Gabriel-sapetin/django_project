@@ -6,6 +6,10 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from .models import Animal, EggProduction, Feed, FeedUsage, Mortality, ActivityLog, Employee, UserProfile, Notification, SoldEgg
 import json
+import logging
+import traceback
+
+logger = logging.getLogger(__name__)
 from django.http import HttpResponse, JsonResponse
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -344,34 +348,57 @@ def feed_inventory(request):
 @login_required
 def mortality_records(request):
     """Display mortality records"""
-    # Get date range from request or default to last 30 days
-    end_date = timezone.now().date()
-    start_date = end_date - timedelta(days=30)
+    try:
+        # Get date range from request or default to last 30 days
+        end_date = timezone.now().date()
+        start_date = end_date - timedelta(days=30)
 
-    if request.GET.get('start_date'):
-        start_date = timezone.datetime.strptime(request.GET['start_date'], '%Y-%m-%d').date()
-    if request.GET.get('end_date'):
-        end_date = timezone.datetime.strptime(request.GET['end_date'], '%Y-%m-%d').date()
+        if request.GET.get('start_date'):
+            start_date = datetime.strptime(request.GET['start_date'], '%Y-%m-%d').date()
+        if request.GET.get('end_date'):
+            end_date = datetime.strptime(request.GET['end_date'], '%Y-%m-%d').date()
 
-    # Get mortality records for the date range
-    mortality_records = Mortality.objects.filter(date__range=[start_date, end_date]).select_related('animal', 'reported_by').order_by('-date')
+        # Get mortality records for the date range
+        mortality_list = Mortality.objects.filter(date__range=[start_date, end_date]).select_related('animal', 'reported_by').order_by('-date')
 
-    # Calculate statistics
-    total_mortality = mortality_records.aggregate(total=Sum('count'))['total'] or 0
-    mortality_by_animal = mortality_records.values('animal__name', 'animal__category').annotate(
-        total_count=Sum('count')
-    ).order_by('-total_count')[:10]  # Top 10 animals with highest mortality
+        # Calculate statistics
+        total_mortality = mortality_list.aggregate(total=Sum('count'))['total'] or 0
+        mortality_by_animal = mortality_list.values('animal__name', 'animal__category').annotate(
+            total_count=Sum('count')
+        ).order_by('-total_count')[:10]
 
-    context = {
-        'mortality_records': mortality_records,
-        'start_date': start_date,
-        'end_date': end_date,
-        'total_mortality': total_mortality,
-        'mortality_by_animal': mortality_by_animal,
-        'animals': Animal.objects.all().order_by('name'),
-        'today': timezone.now().date(),
-    }
-    return render(request, 'farm/mortality_records.html', context)
+        # Get user notifications for base template
+        user_notifications = Notification.objects.filter(user=request.user).order_by('-created_at')[:10]
+        notifications = []
+        for notif in user_notifications:
+            icon_map = {'info': 'ⓘ', 'warning': '⚠️', 'success': '✅', 'error': '✕'}
+            notifications.append({
+                'type': notif.notification_type,
+                'icon': icon_map.get(notif.notification_type, 'ⓘ'),
+                'message': notif.title,
+                'detail': notif.message,
+                'date': notif.created_at.strftime('%Y-%m-%d %H:%M'),
+                'id': notif.id,
+                'is_read': notif.is_read
+            })
+        unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+
+        context = {
+            'mortality_records': mortality_list,
+            'start_date': start_date,
+            'end_date': end_date,
+            'total_mortality': total_mortality,
+            'mortality_by_animal': mortality_by_animal,
+            'animals': Animal.objects.all().order_by('name'),
+            'today': timezone.now().date(),
+            'notifications': notifications,
+            'unread_notifications': unread_count,
+        }
+        return render(request, 'farm/mortality_records.html', context)
+    except Exception as e:
+        logger.error(f'mortality_records view error: {e}')
+        logger.error(traceback.format_exc())
+        return HttpResponse(f'<h1>Error in mortality_records</h1><pre>{traceback.format_exc()}</pre>', status=500)
 
 @login_required
 def record_mortality(request):
@@ -676,38 +703,36 @@ def user_reports(request):
     start_date = end_date - timedelta(days=7)
 
     if request.GET.get('start_date'):
-        start_date = timezone.datetime.strptime(request.GET['start_date'], '%Y-%m-%d').date()
+        start_date = datetime.strptime(request.GET['start_date'], '%Y-%m-%d').date()
     if request.GET.get('end_date'):
-        end_date = timezone.datetime.strptime(request.GET['end_date'], '%Y-%m-%d').date()
+        end_date = datetime.strptime(request.GET['end_date'], '%Y-%m-%d').date()
 
-    # Get egg collection activities with photos for the date range
+    # Get ALL activities with photos for the date range (not just egg_collection)
+    photo_filter = Q(photo__isnull=False) & ~Q(photo='')
     activities = ActivityLog.objects.filter(
         date__range=[start_date, end_date],
-        activity_type='egg_collection',
-        photo__isnull=False
-    ).select_related('employee', 'animal').order_by('-date', '-time')
+    ).filter(photo_filter).select_related('employee', 'animal').order_by('-date', '-time')
 
-    # Group activities by date
-    activities_by_date = {}
+    # Group activities by activity type
+    activities_by_type = {}
     for activity in activities:
-        date_str = activity.date.strftime('%Y-%m-%d')
-        if date_str not in activities_by_date:
-            activities_by_date[date_str] = []
-        activities_by_date[date_str].append(activity)
+        act_type = activity.get_activity_type_display()
+        if act_type not in activities_by_type:
+            activities_by_type[act_type] = []
+        activities_by_type[act_type].append(activity)
 
-    # Get egg collection counts per day
+    # Get activity counts per day across ALL types
     daily_activity_counts = ActivityLog.objects.filter(
         date__range=[start_date, end_date],
-        activity_type='egg_collection'
     ).values('date').annotate(
         total_activities=Count('id'),
-        activities_with_photos=Count('id', filter=Q(photo__isnull=False))
+        activities_with_photos=Count('id', filter=photo_filter)
     ).order_by('-date')
 
     context = {
         'start_date': start_date,
         'end_date': end_date,
-        'activities_by_date': activities_by_date,
+        'activities_by_type': activities_by_type,
         'daily_activity_counts': daily_activity_counts,
     }
     return render(request, 'farm/user_reports.html', context)

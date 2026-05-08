@@ -265,10 +265,10 @@
         </div>
     </div>
 
-    {% for date, activities in activities_by_date.items %}
+    {% for type_name, activities in activities_by_type.items %}
     <div class="day-section">
         <div class="day-header">
-            📅 {{ date|date:"l, F j, Y" }} - {{ activities|length }} Egg Collection Record{{ activities|pluralize }}
+            🗂️ {{ type_name }} - {{ activities|length }} Record{{ activities|length|pluralize }}
             with Photo Proof
         </div>
         {% for activity in activities %}
@@ -282,6 +282,7 @@
             </div>
             <div class="activity-details">
                 <h4>{{ activity.employee.name }} - {{ activity.get_activity_type_display }}</h4>
+                <p><strong>Date:</strong> {{ activity.date|date:"M d, Y" }}</p>
                 <p><strong>Time:</strong> {{ activity.time }}</p>
                 {% if activity.animal %}
                 <p><strong>Animal:</strong> {{ activity.animal.name }} ({{ activity.animal.get_category_display }})</p>
